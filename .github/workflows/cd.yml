@@ -1,0 +1,24 @@
+name: Build a standalone Wasm binary
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build a Wasm binary
+      run: docker-compose build
+    - name: Copy the Wasm binary
+      run: docker-compose run
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: Standalone Wasm binaries
+        path: build/*.wasm
+        if-no-files-found: error

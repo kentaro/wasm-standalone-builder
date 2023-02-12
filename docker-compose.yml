@@ -1,0 +1,8 @@
+version: "3"
+services:
+  wasm-standalone-builder:
+    build:
+      context: .
+    command: cp /work/wasm-graph/target/wasm32-unknown-unknown/release/wasm_graph.wasm /build/resnet50.wasm
+    volumes:
+      - ./build:/build:rw
