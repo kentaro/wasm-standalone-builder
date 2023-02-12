@@ -19,7 +19,7 @@ jobs:
     - name: Build a Wasm binary
       run: docker-compose build
     - name: Copy the Wasm binary
-      run: docker-compose run
+      run: docker-compose run wasm-standalone-builder
 
     - uses: actions/upload-artifact@v3
       with:

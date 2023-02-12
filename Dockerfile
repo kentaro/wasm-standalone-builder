@@ -1,10 +1,14 @@
 # syntax=docker/dockerfile:1.4
 FROM rust:latest
 
-WORKDIR /work
+WORKDIR /workspaces
 
-ENV TVM_HOME /work/tvm
+ENV TVM_HOME /workspaces/tvm
 ENV PYTHONPATH $TVM_HOME/python:${PYTHONPATH}
+
+# Use a cache directory for cargo
+# https://note.com/tkhm_dev/n/n439a4b4b9422
+ENV CARGO_BUILD_TARGET_DIR=/tmp/target
 
 # Build TVM and related libraries
 # https://tvm.apache.org/docs/install/from_source.html
@@ -46,17 +50,21 @@ RUN <<EOS
 EOS
 
 # Build a Wasm binary
-COPY wasm-graph/ /work/wasm-graph
+COPY wasm-graph/ /workspaces/wasm-graph
 
 RUN <<EOS
   cd wasm-graph
 
   # `libgraph_wasm32.a` is built in the previous step
-  cp /work/tvm/apps/wasm-standalone/wasm-graph/lib/libgraph_wasm32.a lib/
+  cp /workspaces/tvm/apps/wasm-standalone/wasm-graph/lib/libgraph_wasm32.a lib/
 
   rustup target add wasm32-unknown-unknown
 
   # `BINDGEN_EXTRA_CLANG_ARGS` is required to include clang headers
   # https://docs.rs/bindgen/latest/bindgen/struct.Builder.html#clang-arguments
   BINDGEN_EXTRA_CLANG_ARGS="-I/usr/lib/llvm-11/lib/clang/11.0.1/include" cargo build --release --target wasm32-unknown-unknown
+EOS
+
+RUN <<EOS
+  rustup component add clippy
 EOS

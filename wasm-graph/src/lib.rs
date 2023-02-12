@@ -56,13 +56,13 @@ lazy_static! {
         }
         let graph = Graph::try_from(
             include_str!(
-                "/work/tvm/apps/wasm-standalone/wasm-graph/lib/graph.json"
+                "/workspaces/tvm/apps/wasm-standalone/wasm-graph/lib/graph.json"
             )
         ).unwrap();
 
         let params_bytes =
             include_bytes!(
-                "/work/tvm/apps/wasm-standalone/wasm-graph/lib/graph.params"
+                "/workspaces/tvm/apps/wasm-standalone/wasm-graph/lib/graph.params"
             );
         let params = tvm_graph_rt::load_param_dict(params_bytes)
             .unwrap()
@@ -94,7 +94,7 @@ pub extern "C" fn predict(index: *const u8, length: usize) -> *const u8 {
         vec![],
         slice.to_vec(),
     );
-    
+
     let input: TVMTensor = img.as_dltensor().into();
 
     // since this executor is not multi-threaded, we can acquire lock once
