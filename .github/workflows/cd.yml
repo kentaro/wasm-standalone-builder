@@ -12,6 +12,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    # Add support for Dockerfile new synax
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
     - name: Build a Wasm binary
       run: docker-compose build
     - name: Copy the Wasm binary
