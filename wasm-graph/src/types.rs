@@ -19,6 +19,7 @@
 
 use std::{
     any::TypeId,
+    mem,
     os::raw::{c_int, c_void},
     slice,
 };
@@ -26,6 +27,8 @@ pub use tvm_sys::ffi::DLTensor;
 use tvm_sys::ffi::{
     DLDataType, DLDataTypeCode_kDLFloat, DLDataTypeCode_kDLInt, DLDevice, DLDeviceType_kDLCPU,
 };
+
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum DataType {
@@ -68,8 +71,6 @@ impl From<DLDataType> for DataType {
             DataType::INT32
         } else if dl_dtype.code == DLDataTypeCode_kDLInt as u8 && dl_dtype.bits == 8u8 {
             DataType::INT8
-        } else if dl_dtype.code == DLDataTypeCode_kDLFloat as u8 && dl_dtype.bits == 32u8 {
-            DataType::FP32
         } else {
             DataType::FP32
         }
@@ -81,12 +82,13 @@ pub struct Tensor {
     pub(crate) dtype: DataType,
     pub(crate) shape: Vec<i64>,
     pub(crate) strides: Option<Vec<usize>>,
-    pub(crate) data: Vec<u8>,
+    pub(crate) data: Vec<f32>,
+    // pub(crate) data: Vec<u8>,
 }
 
 #[allow(dead_code)]
 impl Tensor {
-    pub fn new(dtype: DataType, shape: Vec<i64>, strides: Vec<usize>, data: Vec<u8>) -> Self {
+    pub fn new(dtype: DataType, shape: Vec<i64>, strides: Vec<usize>, data: Vec<f32>) -> Self {
         Tensor {
             dtype,
             shape,
@@ -107,7 +109,7 @@ impl Tensor {
         self.shape.clone()
     }
 
-    pub fn data(&self) -> Vec<u8> {
+    pub fn data(&self) -> Vec<f32> {
         self.data.clone()
     }
 
@@ -123,7 +125,6 @@ impl Tensor {
             shape: self.shape.as_ptr() as *mut i64,
             strides: self.strides.as_ref().unwrap().as_ptr() as *mut i64,
             byte_offset: 0,
-            ..Default::default()
         }
     }
 
@@ -138,7 +139,7 @@ impl Tensor {
         unsafe {
             slice::from_raw_parts(
                 self.data().as_ptr() as *const T,
-                self.shape().iter().map(|v| *v as usize).product::<usize>() as usize,
+                self.shape().iter().map(|v| *v as usize).product::<usize>(),
             )
             .to_vec()
         }
@@ -160,9 +161,12 @@ impl From<DLTensor> for Tensor {
     fn from(dlt: DLTensor) -> Self {
         unsafe {
             let shape = slice::from_raw_parts_mut(dlt.shape, dlt.ndim as usize).to_vec();
-            let size = shape.iter().map(|v| *v as usize).product::<usize>() as usize;
+            let size = shape.iter().map(|v| *v as usize).product::<usize>();
             let itemsize: usize = (dlt.dtype.bits >> 3).into();
-            let data = slice::from_raw_parts(dlt.data as *const u8, size * itemsize).to_vec();
+            // let data = slice::from_raw_parts(dlt.data as *const u8, size * itemsize).to_vec();
+            let data =
+                slice::from_raw_parts::<f32>(dlt.data as *const f32, size * itemsize)
+                    .to_vec();
 
             Self {
                 dtype: DataType::from(dlt.dtype),
@@ -180,3 +184,38 @@ impl From<DLTensor> for Tensor {
         }
     }
 }
+
+/// `From` conversions to `Tensor` for `ndarray::Array`.
+/// Takes a reference to the `ndarray` since `Tensor` is not owned.
+/// https://github.com/apache/tvm/blob/main/apps/wasm-standalone/wasm-runtime/src/types.rs#L101-L126
+macro_rules! impl_tensor_from_ndarray {
+    ($type:ty, $typecode:expr) => {
+        impl<D: ndarray::Dimension> From<ndarray::Array<$type, D>> for Tensor {
+            fn from(arr: ndarray::Array<$type, D>) -> Self {
+                Tensor {
+                    dtype: $typecode,
+                    shape: arr.shape().iter().map(|v| *v as i64).collect(),
+                    strides: Some(arr.strides().iter().map(|v| *v as usize).collect()),
+                    // data: unsafe {
+                    //     slice::from_raw_parts(
+                    //         arr.as_ptr() as *const u8,
+                    //         arr.len() * mem::size_of::<$type>(),
+                    //     )
+                    //     .to_vec()
+                    // },
+                    data: unsafe {
+                        slice::from_raw_parts(
+                            arr.as_ptr() as *const f32,
+                            arr.len(),
+                        )
+                        .to_vec()
+                    },
+                }
+            }
+        }
+    };
+}
+
+impl_tensor_from_ndarray!(f32, DataType::FP32);
+impl_tensor_from_ndarray!(i32, DataType::INT32);
+impl_tensor_from_ndarray!(i8, DataType::INT8);

@@ -18,8 +18,7 @@
  */
 
 use super::types::*;
-use serde_json;
-use std::ptr;
+use std::{ptr, convert::TryInto};
 
 pub unsafe fn load_input(in_addr: i32, in_size: usize) -> Tensor {
     let in_addr = in_addr as *mut u8;
@@ -28,7 +27,7 @@ pub unsafe fn load_input(in_addr: i32, in_size: usize) -> Tensor {
 
     let data_vec = unsafe { std::slice::from_raw_parts(in_addr, in_size) };
 
-    let input = serde_json::from_slice(&data_vec);
+    let input = serde_json::from_slice(data_vec);
     match input {
         Ok(result) => {
             println!("DEBUG: SER SUCCEED!!! and Ok");
@@ -41,12 +40,13 @@ pub unsafe fn load_input(in_addr: i32, in_size: usize) -> Tensor {
 }
 
 pub unsafe fn store_output(out_addr: i32, output: Tensor) -> usize {
+//pub unsafe fn store_output(out_addr: i32, output: Vec<f32>) -> usize {
     let out_addr = out_addr as *mut u8;
 
     let data_vec = serde_json::to_vec(&output).unwrap();
     let data_size = data_vec.len();
     for i in 0..data_size {
-        ptr::write(out_addr.offset(i as isize), *data_vec.get(i).unwrap());
+        ptr::write(out_addr.offset(i.try_into().unwrap()), *data_vec.get(i).unwrap());
     }
 
     data_size

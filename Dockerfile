@@ -19,6 +19,12 @@ RUN <<EOS
   apt-get install -y python3 python3-dev python3-pip python3-setuptools gcc libtinfo-dev zlib1g-dev build-essential cmake libedit-dev libxml2-dev llvm libclang-dev
 EOS
 
+# Install Rust tools for development
+RUN <<EOS
+  rustup component add clippy
+  rustup component add rustfmt
+EOS
+
 # Build TVM
 RUN git clone --recursive https://github.com/apache/tvm tvm
 RUN <<EOS
@@ -63,8 +69,4 @@ RUN <<EOS
   # `BINDGEN_EXTRA_CLANG_ARGS` is required to include clang headers
   # https://docs.rs/bindgen/latest/bindgen/struct.Builder.html#clang-arguments
   BINDGEN_EXTRA_CLANG_ARGS="-I/usr/lib/llvm-11/lib/clang/11.0.1/include" cargo build --release --target wasm32-unknown-unknown
-EOS
-
-RUN <<EOS
-  rustup component add clippy
 EOS

@@ -19,8 +19,6 @@
 
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate serde_derive;
 
 use std::mem;
 use std::slice;
@@ -30,16 +28,22 @@ mod utils;
 
 use std::{collections::HashMap, convert::TryFrom, sync::Mutex};
 
+use ndarray::Array;
 use tvm_graph_rt::{Graph, GraphExecutor, SystemLibModule, Tensor as TVMTensor};
 
 use types::*;
 
-use serde_json;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+
+use image::{ImageBuffer, Rgb};
+use image::imageops::FilterType;
+
+const IMG_HEIGHT: usize = 224;
+const IMG_WIDTH: usize = 224;
 
 #[derive(Serialize, Deserialize)]
-struct ImageInfo {
-    data: Vec<u8>,
+struct Result {
+    data: Vec<f32>,
 }
 
 extern "C" {
@@ -78,36 +82,59 @@ lazy_static! {
     };
 }
 
+/// # Safety
 #[no_mangle]
-pub extern "C" fn predict(index: *const u8, length: usize) -> *const u8 {
-    // let in_tensor = unsafe {
-    //   utils::load_input(wasm_addr as i32, in_size * mem::size_of::<u64>() as usize)
-    // };
-    // let input: TVMTensor = in_tensor.as_dltensor().into();
-
-    let slice = unsafe {
-      slice::from_raw_parts(index, length * mem::size_of::<u64>() as usize)
-    };
-    let img = Tensor::new(
-        DataType::INT8,
-        vec![224, 224, 3],
-        vec![],
-        slice.to_vec(),
-    );
-
-    let input: TVMTensor = img.as_dltensor().into();
+pub unsafe extern "C" fn predict(index: *const u8, length: usize) -> i32 {
+    let slice = unsafe { slice::from_raw_parts(index, length) };
+    let img_buffer = image::RgbImage::from_raw(224, 224, slice.to_vec()).unwrap();
+    //let img = image::DynamicImage::ImageRgb8(img_buffer);
+    let img_tensor = data_preprocess(img_buffer);
+    let input = img_tensor.as_dltensor().into();
 
     // since this executor is not multi-threaded, we can acquire lock once
     let mut executor = GRAPH_EXECUTOR.lock().unwrap();
     executor.set_input("data", input);
     executor.run();
 
-    // let output = executor.get_output(0).unwrap().as_dltensor(false);
-    // let out_tensor: Tensor = output.into();
-    let image_info = ImageInfo {
-        data: vec![1, 2, 3, 4, 5],
-    };
+    let output = executor.get_output(0).unwrap().as_dltensor(false);
+    let out_tensor: Tensor = output.into();
+    //let output = out_tensor.to_vec::<f32>();
+    let output = out_tensor;
 
-    let json = serde_json::to_string(&image_info).unwrap();
-    json.as_ptr()
+    let out_size = unsafe { utils::store_output(index as i32, output) };
+    out_size as i32
+
+    // let result = Result {
+    //   data: out_tensor.to_vec::<f32>(),
+    // };
+
+    // let json = serde_json::to_string(&result).unwrap();
+    // json.as_ptr()
+}
+
+/// https://github.com/apache/tvm/blob/main/apps/wasm-standalone/wasm-runtime/tests/test_graph_resnet50/src/main.rs#L92-L118
+//fn data_preprocess(img: image::DynamicImage) -> Tensor {
+fn data_preprocess(img: ImageBuffer<Rgb<u8>, Vec<u8>>) -> Tensor {
+    let resized = image::imageops::resize(&img, IMG_HEIGHT as u32, IMG_WIDTH as u32, FilterType::Nearest);
+    let img = resized;//img.to_rgb32f();
+
+    let mut pixels: Vec<f32> = vec![];
+    for pixel in img.pixels() {
+        // normalize the RGB channels using mean, std of imagenet1k
+        let tmp = [
+            (pixel[0] as f32 - 123.0) / 58.395, // R
+            (pixel[1] as f32 - 117.0) / 57.12,  // G
+            (pixel[2] as f32 - 104.0) / 57.375, // B
+        ];
+        for e in &tmp {
+            pixels.push(*e);
+        }
+    }
+
+    // (H,W,C) -> (C,H,W)
+    let arr = Array::from_shape_vec((IMG_HEIGHT, IMG_WIDTH, 3), pixels).unwrap();
+    let arr = arr.permuted_axes([2, 0, 1]);
+    let arr = Array::from_iter(arr.into_iter().copied());
+
+    Tensor::from(arr)
 }
