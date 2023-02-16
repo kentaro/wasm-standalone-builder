@@ -18,8 +18,7 @@ RUN apt-get install -y python3 python3-dev python3-pip python3-setuptools gcc li
 
 # Build TVM
 RUN git clone --recursive https://github.com/apache/tvm tvm
-RUN
-  cd tvm && \\
+RUN cd tvm && \\
   mkdir -p build && \\
   cp cmake/config.cmake build/ && \\
   cd build && \\
@@ -28,9 +27,7 @@ RUN
   make -j4
 
 # Install python libraries
-RUN
-  # for TVM
-  pip3 install numpy decorator attrs && \\
+RUN pip3 install numpy decorator attrs && \\
   # for building a ML model
   pip3 install onnx pillow psutil scipy && \\
   # TVM python bindings
@@ -39,15 +36,13 @@ RUN
 
 # Build a ML model
 # https://github.com/apache/tvm/tree/main/apps/wasm-standalone
-RUN
-  cd tvm/apps/wasm-standalone/wasm-graph/tools && \\
+RUN cd tvm/apps/wasm-standalone/wasm-graph/tools && \\
   LLVM_AR=llvm-ar-11 python3 ./build_graph_lib.py -O3
 
 # Build a Wasm binary
 COPY wasm-graph/ /workspaces/wasm-graph
 
-RUN <<EOS
-  cd wasm-graph && \\
+RUN cd wasm-graph && \\
 
   # `libgraph_wasm32.a` is built in the previous step
   cp /workspaces/tvm/apps/wasm-standalone/wasm-graph/lib/libgraph_wasm32.a lib/ && \\
