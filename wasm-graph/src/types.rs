@@ -19,7 +19,6 @@
 
 use std::{
     any::TypeId,
-    mem,
     os::raw::{c_int, c_void},
     slice,
 };

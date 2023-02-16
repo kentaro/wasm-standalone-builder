@@ -20,7 +20,6 @@
 #[macro_use]
 extern crate lazy_static;
 
-use std::mem;
 use std::slice;
 
 mod types;
@@ -84,9 +83,9 @@ lazy_static! {
 
 /// # Safety
 #[no_mangle]
-pub unsafe extern "C" fn predict(index: *const u8, length: usize) -> i32 {
+pub unsafe extern "C" fn predict(index: *const u8, length: usize, width: u32, height: u32) -> i32 {
     let slice = unsafe { slice::from_raw_parts(index, length) };
-    let img_buffer = image::RgbImage::from_raw(224, 224, slice.to_vec()).unwrap();
+    let img_buffer = image::RgbImage::from_raw(width, height, slice.to_vec()).unwrap();
     //let img = image::DynamicImage::ImageRgb8(img_buffer);
     let img_tensor = data_preprocess(img_buffer);
     let input = img_tensor.as_dltensor().into();
@@ -98,18 +97,10 @@ pub unsafe extern "C" fn predict(index: *const u8, length: usize) -> i32 {
 
     let output = executor.get_output(0).unwrap().as_dltensor(false);
     let out_tensor: Tensor = output.into();
-    //let output = out_tensor.to_vec::<f32>();
     let output = out_tensor;
 
     let out_size = unsafe { utils::store_output(index as i32, output) };
     out_size as i32
-
-    // let result = Result {
-    //   data: out_tensor.to_vec::<f32>(),
-    // };
-
-    // let json = serde_json::to_string(&result).unwrap();
-    // json.as_ptr()
 }
 
 /// https://github.com/apache/tvm/blob/main/apps/wasm-standalone/wasm-runtime/tests/test_graph_resnet50/src/main.rs#L92-L118
