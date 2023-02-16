@@ -7,3 +7,12 @@ services:
     command: cp /tmp/target/wasm32-unknown-unknown/release/wasm_graph.wasm /build/resnet50.wasm
     volumes:
       - ./build:/build:rw
+
+  github:
+    image: wasm-standalone-builder
+    build:
+      context: .
+      dockerfile: Dockerfile.github
+    command: cp /tmp/target/wasm32-unknown-unknown/release/wasm_graph.wasm /build/resnet50.wasm
+    volumes:
+      - ./build:/build:rw

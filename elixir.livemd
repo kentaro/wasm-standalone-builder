@@ -1,0 +1,81 @@
+# Untitled notebook
+
+```elixir
+Mix.install([
+  {:req, "~> 0.3"},
+  {:kino, "~> 0.8"},
+  {:nx, "~> 0.4.0"},
+  {:nx_image, "~> 0.1.0"},
+  {:wasmtube, path: "../../kentaro/wasmtube", branch: "main"}
+])
+```
+
+## Section
+
+```elixir
+input = Kino.Input.image("IMAGE")
+```
+
+```elixir
+image = input |> Kino.Input.read()
+
+resized_image =
+  image
+  |> Map.get(:data)
+  |> tap(fn x -> IO.puts(x |> byte_size()) end)
+  |> Nx.from_binary(:u8)
+  |> Nx.reshape({image.height, image.width, 3})
+  |> NxImage.resize({224, 224}, method: :nearest)
+  |> Kino.Image.new()
+
+resized_image.content |> byte_size() |> IO.puts()
+resized_image
+```
+
+```elixir
+label_data =
+  Req.get!("https://raw.githubusercontent.com/kazum/tvm-wasm/master/synset.csv")
+  |> Map.get(:body)
+  |> String.trim()
+  |> String.split("\r\n")
+  |> Enum.reduce(%{}, fn line, acc ->
+    [k, v] = line |> String.split(",", parts: 2)
+    acc |> Map.put(String.to_integer(k), v)
+  end)
+```
+
+```elixir
+result =
+  Wasmtube.from_file(
+    "/Users/kentaro/src/github.com/kentaro/wasm-standalone-builder/build/resnet50.wasm"
+  )
+  |> Wasmtube.call_function("predict", image: resized_image.content, width: 224, height: 224)
+```
+
+```elixir
+result["data"] |> Enum.count() |> IO.puts()
+# Enum.count |> IO.puts
+result["data"] |> Enum.reverse() |> Enum.take(10)
+```
+
+```elixir
+{max_index, max_value} =
+  result
+  |> Map.get("data")
+  |> Enum.with_index()
+  |> Enum.reduce({0, 0}, fn {v, i}, acc ->
+    {_, max_value} = acc
+
+    if v > max_value do
+      {i, v}
+    else
+      acc
+    end
+  end)
+
+{max_index, max_value}
+```
+
+```elixir
+label_data[max_index]
+```

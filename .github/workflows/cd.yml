@@ -17,7 +17,7 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Build a Wasm binary
-      run: docker-compose build
+      run: docker-compose build github
     - name: Copy the Wasm binary
       run: docker-compose run wasm-standalone-builder
 
