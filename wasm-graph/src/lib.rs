@@ -106,9 +106,6 @@ pub unsafe extern "C" fn predict(index: *const u8, length: usize, width: u32, he
 /// https://github.com/apache/tvm/blob/main/apps/wasm-standalone/wasm-runtime/tests/test_graph_resnet50/src/main.rs#L92-L118
 //fn data_preprocess(img: image::DynamicImage) -> Tensor {
 fn data_preprocess(img: ImageBuffer<Rgb<u8>, Vec<u8>>) -> Tensor {
-    let resized = image::imageops::resize(&img, IMG_HEIGHT as u32, IMG_WIDTH as u32, FilterType::Nearest);
-    let img = resized;//img.to_rgb32f();
-
     let mut pixels: Vec<f32> = vec![];
     for pixel in img.pixels() {
         // normalize the RGB channels using mean, std of imagenet1k
