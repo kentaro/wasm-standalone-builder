@@ -5,8 +5,8 @@ services:
     build:
       context: .
     command: >
-      cp /tmp/target/wasm32-unknown-unknown/release/resnet50.wasm /build
-      cp /tmp/target/wasm32-unknown-unknown/release/mobilenetv2.wasm /build
+      cp /tmp/target/wasm32-unknown-unknown/release/resnet50.wasm /build/resnet50.wasm
+      cp /tmp/target/wasm32-unknown-unknown/release/mobilenetv2.wasm /build/mobilenetv2.wasm
     volumes:
       - ./build:/build:rw
 
@@ -16,7 +16,7 @@ services:
       context: .
       dockerfile: Dockerfile.github
     command: >
-      cp /tmp/target/wasm32-unknown-unknown/release/resnet50.wasm /build
-      cp /tmp/target/wasm32-unknown-unknown/release/mobilenetv2.wasm /build
+      cp /tmp/target/wasm32-unknown-unknown/release/resnet50.wasm /build/resnet50.wasm
+      cp /tmp/target/wasm32-unknown-unknown/release/mobilenetv2.wasm /build/mobilenetv2.wasm
     volumes:
       - ./build:/build:rw
