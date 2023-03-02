@@ -48,18 +48,17 @@ RUN <<EOS
   python3 setup.py install
 EOS
 
-# Build a ML model
+# Build a ResNet50 model
 # https://github.com/apache/tvm/tree/main/apps/wasm-standalone
+COPY ./resnet50/ /workspaces/resnet50
+
 RUN <<EOS
   cd tvm/apps/wasm-standalone/wasm-graph/tools
   LLVM_AR=llvm-ar-11 python3 ./build_graph_lib.py -O3
 EOS
 
-# Build a Wasm binary
-COPY wasm-graph/ /workspaces/wasm-graph
-
 RUN <<EOS
-  cd wasm-graph
+  cd resnet50
 
   # `libgraph_wasm32.a` is built in the previous step
   cp /workspaces/tvm/apps/wasm-standalone/wasm-graph/lib/libgraph_wasm32.a lib/
@@ -69,4 +68,27 @@ RUN <<EOS
   # `BINDGEN_EXTRA_CLANG_ARGS` is required to include clang headers
   # https://docs.rs/bindgen/latest/bindgen/struct.Builder.html#clang-arguments
   BINDGEN_EXTRA_CLANG_ARGS="-I/usr/lib/llvm-11/lib/clang/11.0.1/include" cargo build --release --target wasm32-unknown-unknown
+  mv /tmp/target/wasm32-unknown-unknown/release/wasm_graph.wasm /tmp/target/wasm32-unknown-unknown/release/resnet50.wasm
+EOS
+
+# Build a MobileNetV2 model
+COPY ./mobilenetv2/ /workspaces/mobilenetv2
+
+RUN <<EOS
+  cd mobilenetv2/tools
+  LLVM_AR=llvm-ar-11 python3 ./build_graph_lib.py -O3
+EOS
+
+RUN <<EOS
+  cd mobilenetv2
+
+  # `libgraph_wasm32.a` is built in the previous step
+  cp /workspaces/mobilenetv2/tools/libgraph_wasm32.a lib/
+
+  rustup target add wasm32-unknown-unknown
+
+  # `BINDGEN_EXTRA_CLANG_ARGS` is required to include clang headers
+  # https://docs.rs/bindgen/latest/bindgen/struct.Builder.html#clang-arguments
+  BINDGEN_EXTRA_CLANG_ARGS="-I/usr/lib/llvm-11/lib/clang/11.0.1/include" cargo build --release --target wasm32-unknown-unknown
+  mv /tmp/target/wasm32-unknown-unknown/release/wasm_graph.wasm /tmp/target/wasm32-unknown-unknown/release/mobilenetv2.wasm
 EOS

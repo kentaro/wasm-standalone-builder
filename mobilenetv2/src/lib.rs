@@ -35,7 +35,6 @@ use types::*;
 use serde::{Deserialize, Serialize};
 
 use image::{ImageBuffer, Rgb};
-use image::imageops::FilterType;
 
 const IMG_HEIGHT: usize = 224;
 const IMG_WIDTH: usize = 224;
@@ -50,35 +49,35 @@ extern "C" {
 }
 
 lazy_static! {
-    static ref SYSLIB: SystemLibModule = SystemLibModule::default();
-    static ref GRAPH_EXECUTOR: Mutex<GraphExecutor<'static, 'static>> = {
-        unsafe {
-            // This is necessary to invoke TVMBackendRegisterSystemLibSymbol
-            // API calls.
-            __wasm_call_ctors();
-        }
-        let graph = Graph::try_from(
-            include_str!(
-                "/workspaces/tvm/apps/wasm-standalone/wasm-graph/lib/graph.json"
-            )
-        ).unwrap();
+  static ref SYSLIB: SystemLibModule = SystemLibModule::default();
+  static ref GRAPH_EXECUTOR: Mutex<GraphExecutor<'static, 'static>> = {
+      unsafe {
+          // This is necessary to invoke TVMBackendRegisterSystemLibSymbol
+          // API calls.
+          __wasm_call_ctors();
+      }
+      let graph = Graph::try_from(
+          include_str!(
+              "/workspaces/mobilenetv2/tools/graph.json"
+          )
+      ).unwrap();
 
-        let params_bytes =
-            include_bytes!(
-                "/workspaces/tvm/apps/wasm-standalone/wasm-graph/lib/graph.params"
-            );
-        let params = tvm_graph_rt::load_param_dict(params_bytes)
-            .unwrap()
-            .into_iter()
-            .map(|(k, v)| (k, v.to_owned()))
-            .collect::<HashMap<String, TVMTensor<'static>>>();
+      let params_bytes =
+          include_bytes!(
+              "/workspaces/mobilenetv2/tools/graph.params"
+          );
+      let params = tvm_graph_rt::load_param_dict(params_bytes)
+          .unwrap()
+          .into_iter()
+          .map(|(k, v)| (k, v.to_owned()))
+          .collect::<HashMap<String, TVMTensor<'static>>>();
 
-        let mut exec = GraphExecutor::new(graph, &*SYSLIB).unwrap();
+      let mut exec = GraphExecutor::new(graph, &*SYSLIB).unwrap();
 
-        exec.load_params(params);
+      exec.load_params(params);
 
-        Mutex::new(exec)
-    };
+      Mutex::new(exec)
+  };
 }
 
 /// # Safety
@@ -103,8 +102,6 @@ pub unsafe extern "C" fn predict(index: *const u8, length: usize, width: u32, he
     out_size as i32
 }
 
-/// https://github.com/apache/tvm/blob/main/apps/wasm-standalone/wasm-runtime/tests/test_graph_resnet50/src/main.rs#L92-L118
-//fn data_preprocess(img: image::DynamicImage) -> Tensor {
 fn data_preprocess(img: ImageBuffer<Rgb<u8>, Vec<u8>>) -> Tensor {
     let mut pixels: Vec<f32> = vec![];
     for pixel in img.pixels() {
