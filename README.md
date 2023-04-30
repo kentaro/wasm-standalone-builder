@@ -11,7 +11,7 @@ docker-compose build wasm-standalone-builder
 docker-compose run wasm-standalone-builder
 ```
 
-Then you'll see Wasm binaries in the `build``/` directory.
+Then you'll see Wasm binaries in the `build/` directory.
 
 ## Author
 
